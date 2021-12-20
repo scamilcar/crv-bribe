@@ -29,11 +29,21 @@ contract CurveBribeTest is DSTest {
         assertEq(preBalance + amount, postBalance);
     }
 
-    // Should test it is possible to deposit 'amount' in the contract and fail since depositing less than amountPerVote.
-    function testFail_depositIncentive() public {
+    // Should test if it is possible to deposit 'amount' in the contract and fail since 'amount' is less than 'amountPerVote'.
+    function testFail_depositIncentive_deposit_less() public {
         uint256 amount = 500000*10**18;
         spell.approve(address(bribe), amount);
         bribe.depositIncentive(amount);
+    }
+
+     // Should test if the depositor is refunded as intended when the 'amount' deposited is superior to but not a multiple of 'amountPerVote'. 
+    function test_depositIncentve_refund() public {
+        uint256 amount = 1300000*10**18;
+        uint256 expectedRefund = amount % AMOUNT_PER_VOTE;
+        spell.approve(address(bribe), amount);
+        bribe.depositIncentive(amount);
+        uint256 balance = spell.balanceOf(address(bribe));
+        assertEq(balance, amount - expectedRefund);
     }
 
     // Should test if it is possible to incentivize targetGauge by asserting that the balances of bribe and BRIBE_V2 are correct.
@@ -50,8 +60,7 @@ contract CurveBribeTest is DSTest {
         assertEq(preBalanceCRVBribeV2 + AMOUNT_PER_VOTE, postBalanceCRVBribeV2);
     }
     
-    // Should test if it is possible to call incentivizeGauge more than once a week. 
-    // Should fail since called before a WEEK has passed.
+    // Should test if it is possible to call incentivizeGauge() more than once a week and fail since called before a WEEK has passed.
     function testFail_incentivizeGauge() public {
         for (uint i=0; i<2; i++) {
             bribe.incentivizeGauge();

@@ -13,12 +13,14 @@ interface IERC20 {
 
 contract Bribe {
     
+    // BribeV2 contract address.
     address constant public BRIBE_V2 = 0x7893bbb46613d7a4FbcC31Dab4C9b823FfeE1026;
 
     address public incentiveToken;
     address public targetGauge;
     uint256 public amountPerVote;
     
+    // Unix timestamp of the last time the incentive was paid out.
     uint256 public activePeriod;
     uint256 constant WEEK = 86400 * 7;
 
@@ -33,24 +35,31 @@ contract Bribe {
         targetGauge = _targetGauge;
     }
 
-    // Allows anyone to deposited any '_amount' of 'incentiveTokens' in this contract.
-    // Refunds the depositor 'refund' if '_amount' is not a multiple of 'amountPerVote'.
+    // Allows anyone to deposit a desired '_amount' of 'incentiveTokens' in this contract.
+    // Refunds the depositor 'refund' if 'amount' is not a multiple of 'amountPerVote'.
+    // Reverts if '_amount' is less than 'amountPerVote'.
+    // Depositors should first approve this contract to spend '_amount' of their 'incentiveToken'.
     function depositIncentive(uint256 _amount) external returns (bool) {
         require(_amount >= amountPerVote, "Not enough tokens");
         uint256 refund = _amount % amountPerVote;
-        uint256 deposit = _amount - refund;
-        IERC20(incentiveToken).transferFrom(msg.sender, address(this), deposit);
-        emit Deposited(msg.sender, deposit);
+        if (refund == 0) {
+            IERC20(incentiveToken).transferFrom(msg.sender, address(this), _amount);
+            emit Deposited(msg.sender, _amount);
+        } else {
+            uint256 deposit = _amount - refund;
+            IERC20(incentiveToken).transferFrom(msg.sender, address(this), deposit);
+            emit Deposited(msg.sender, deposit);
+        }
         return true;
     }
 
     // Deposits 'amountPerVote' from this contract to the BRIBE_V2 contract.
     // Reverts if called before a week has passed since the last call,
-    // meaning that the 'targetGauge' has already been incentivized by this contract for this week's vote).
+    // meaning that the 'targetGauge' has already been incentivized by this contract for this week's vote.
     // Important : Should be called for the first time just after the weekly gauge vote goes live (Thursday 00:00 UTC)
-    // so that it can only be called once per week after that, thus only allowing 1 bribe of amountPerVote per week for targetGauge.
+    // so that it can only be called once per week after that, thus only allowing 1 bribe of 'amountPerVote' per vote for 'targetGauge'.
     function incentivizeGauge() external returns (bool) {
-        require(block.timestamp >= activePeriod + WEEK, "Gauge already incentivized for this week's vote.");
+        require(block.timestamp >= activePeriod + WEEK, "Gauge already incentivized this week.");
         activePeriod = block.timestamp;
         IERC20(incentiveToken).approve(BRIBE_V2, amountPerVote);
         IBribeV2(BRIBE_V2).add_reward_amount(targetGauge, incentiveToken, amountPerVote);
