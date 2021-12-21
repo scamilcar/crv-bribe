@@ -22,7 +22,7 @@ contract Bribe {
     
     // Unix timestamp of the last time the incentive was paid out.
     uint256 public activePeriod;
-    uint256 constant WEEK = 86400 * 7;
+    uint256 constant WEEK = 3600 * 24 * 7;
 
     // Emitted when a '_depositor' deposits '_amount' 'incentiveToken'.
     event Deposited(address indexed _depositor, uint256 _amount);
